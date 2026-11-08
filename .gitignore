@@ -1,0 +1,13 @@
+# Types the engine writes when it loads the mod
+.claude-plugin/types/
+node_modules/
+*.log
+
+# Personal draft, not part of the mod
+docs/social-post.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
