@@ -1,6 +1,6 @@
 {
   "name": "usage-meter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Progress bars for context window and 5h / weekly quota, right above the Claude Code chat box",
   "author": { "name": "teontdev", "url": "https://github.com/teontdev" },
   "homepage": "https://github.com/teontdev/claude-code-usage-meter",
