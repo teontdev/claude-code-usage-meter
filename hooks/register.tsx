@@ -104,7 +104,8 @@ export const register: Register = on => {
   on('session.compact', async ($, e, next) => {
     const r = await next(e)
     // The engine reports no context fill until the next response; the compaction's own count does.
-    if (r.messages && !e.agentId && e.trigger !== 'precompute') await refresh($, r.tokensAfter)
+    // A failed read must not fail the compaction itself.
+    if (r.messages && !e.agentId && e.trigger !== 'precompute') await refresh($, r.tokensAfter).catch(() => {})
     return r
   })
 
