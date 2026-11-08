@@ -67,6 +67,14 @@ export const meters = (s: Snap): Meter[] => {
   ]
 }
 
+// Blocks per bar in a terminal: what's left of the row after labels, gaps, padding and the button,
+// split in three, 3 to 20. ⚡ is drawn two columns wide.
+export const termCells = (columns: number, ms: Meter[]) => {
+  const labels = ms.reduce((sum, m) => sum + m.text.length + (m.text.includes('⚡') ? 1 : 0) + 1, 0)
+  const free = columns - labels - GAP * ms.length - 'Compact'.length - 2
+  return Math.max(3, Math.min(CELLS, Math.floor(free / ms.length)))
+}
+
 // Compacting outlasts what a button press may run, so a timer starts it. It runs /compact as a
 // command: the session's own compaction is refused on the desktop app.
 let isCompacting = false
@@ -123,29 +131,48 @@ export const register: Register = on => {
 
     // Each cell is a Box holding one ■ glyph: as tall as the text's letters (a background fill is a
     // whole line high), and all cells shrink alike when the bar is squeezed.
-    const bar = (n: number) => (
-      <Box flexDirection="row" flexWrap="nowrap" flexShrink={1} minWidth={0} columnGap={0}>
-        {Array.from({ length: CELLS }, (_, i) => (
-          <Box flexShrink={1} minWidth={0} overflow="hidden">
-            <Text color={i < n ? 'success' : 'white'}>■ </Text>
-          </Box>
-        ))}
-      </Box>
-    )
+    const desktopBar = (pct: number | undefined) => {
+      const n = filled(pct)
+      return (
+        <Box flexDirection="row" flexWrap="nowrap" flexShrink={1} minWidth={0} columnGap={0}>
+          {Array.from({ length: CELLS }, (_, i) => (
+            <Box flexShrink={1} minWidth={0} overflow="hidden">
+              <Text color={i < n ? 'success' : 'white'}>■ </Text>
+            </Box>
+          ))}
+        </Box>
+      )
+    }
+
+    // A terminal cell is one column: shrinking boxes there drop glyphs at random, so the bar is one
+    // unbroken run sized to the columns left beside the labels.
+    const isTerminal = e.surface === 'terminal'
+    const cells = termCells(e.props.bodyColumns, ms)
+    const termBar = (pct: number | undefined) => {
+      const n = Math.max(0, Math.min(cells, Math.round(((pct ?? 0) / 100) * cells)))
+      return (
+        <Box flexDirection="row" flexWrap="nowrap" flexShrink={0}>
+          <Text color="success">{'■'.repeat(n)}</Text>
+          <Text dimColor>{'■'.repeat(cells - n)}</Text>
+        </Box>
+      )
+    }
+    // Black reads on the desktop's light band; a terminal keeps its own foreground, light or dark.
+    const ink = isTerminal ? undefined : 'black'
 
     return (
       <Box flexDirection="row" flexWrap="nowrap" justifyContent="space-between" width="100%" columnGap={GAP} marginTop={1} paddingX={1}>
         {ms.map(m => (
           <Box flexDirection="row" flexWrap="nowrap" flexShrink={1} minWidth={0} columnGap={1}>
-            {bar(filled(m.pct))}
+            {isTerminal ? termBar(m.pct) : desktopBar(m.pct)}
             <Box flexShrink={0}>
-              <Text color="black" wrap="truncate">{m.text}</Text>
+              <Text color={ink} wrap="truncate">{m.text}</Text>
             </Box>
           </Box>
         ))}
         <Box flexShrink={0}>
           <Button key="compact" label="Compact" plain onPress={() => compactNow($, e.props.isWorking)}>
-            <Text color="black">Compact</Text>
+            <Text color={ink}>Compact</Text>
           </Button>
         </Box>
       </Box>

@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contextPct, filled, resetAt } from '../hooks/register'
+import { contextPct, filled, meters, resetAt, termCells } from '../hooks/register'
 
 const BAND = {
   plugin: 'usage-meter',
@@ -50,10 +50,19 @@ test('band shows exact context, 5h, week; with Compact button', async ($, on) =>
     expect((await ui.find({ type: 'Text', text: /◴/ }))?.text).toBe('◴ 43% • 431k/1000k')
     expect((await ui.find({ type: 'Text', text: /⚡72%/ }))?.text).toBe(`⚡72%${resetAt('2026-11-08T07:50:00Z', false)}`)
     expect((await ui.find({ type: 'Text', text: /⚡12%/ }))?.text).toBe(`⚡12%${resetAt('2026-11-13T05:00:00Z', true)}`)
-    const cells = await ui.findAll({ type: 'Text', text: /^■ $/ })
-    expect(cells).toHaveLength(60)
-    expect(cells.slice(0, 20).filter(x => x.props.color === 'success')).toHaveLength(9)
-    expect(cells.slice(0, 20).filter(x => x.props.color === 'white')).toHaveLength(11)
+    if (surface === 'desktop') {
+      const cells = await ui.findAll({ type: 'Text', text: /^■ $/ })
+      expect(cells).toHaveLength(60)
+      expect(cells.slice(0, 20).filter(x => x.props.color === 'success')).toHaveLength(9)
+      expect(cells.slice(0, 20).filter(x => x.props.color === 'white')).toHaveLength(11)
+    } else {
+      // One unbroken run per bar, never the desktop's shrinking cells; labels in the terminal's own color.
+      expect(await ui.findAll({ type: 'Text', text: /^■ $/ })).toHaveLength(0)
+      const green = await ui.findAll({ type: 'Text', text: /^■*$/, props: { color: 'success' } })
+      const n = termCells(120, meters({ tokens: 431000, window: 1000000, fiveHour: 72.4, week: 12, fiveReset: '2026-11-08T07:50:00Z', weekReset: '2026-11-13T05:00:00Z' }))
+      expect(green[0]?.text).toBe('■'.repeat(Math.round(0.431 * n)))
+      expect((await ui.find({ type: 'Text', text: /◴/ }))?.props.color).toBeUndefined()
+    }
     expect((await ui.find({ type: 'Button' }))?.key).toBe('compact')
     await ui.unmount()
   }
@@ -101,4 +110,13 @@ test('after a compaction the bars show its token count, not "--"', async ($, on)
   await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'hi', toolUses: [] }] as never })
   expect((await ui.find({ type: 'Text', text: /◴/ }))?.text).toBe('◴ 3% • 30k/1000k')
   await ui.unmount()
+})
+
+test('terminal bars fit what the labels leave, 3 to 20 blocks', () => {
+  const ms = meters({ tokens: 431000, window: 1000000, fiveHour: 72, week: 12 })
+  expect(termCells(400, ms)).toBe(20)
+  expect(termCells(40, ms)).toBe(3)
+  const mid = termCells(100, ms)
+  expect(mid).toBeGreaterThan(3)
+  expect(mid).toBeLessThan(20)
 })
