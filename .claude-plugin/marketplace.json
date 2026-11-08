@@ -1,6 +1,6 @@
 {
   "name": "usage-meter",
   "description": "Claude Code mod: progress bars for context window and 5h / weekly quota above the chat box",
-  "owner": { "name": "trilong0610" },
+  "owner": { "name": "teontdev" },
   "plugins": [{ "name": "usage-meter", "source": "./" }]
 }
